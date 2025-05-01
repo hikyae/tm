@@ -8,6 +8,7 @@ import time
 import numpy as np
 import pygame
 
+BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 SAMPLE_RATE = 44100
 FREQ = 2000
@@ -97,7 +98,7 @@ def main():
         now = time.time()
         remaining = int(duration - (now - start_time) + 1)
 
-        screen.fill((0, 0, 0))
+        screen.fill(BLACK)
 
         if counting_down:
             hrs = remaining // 3600
