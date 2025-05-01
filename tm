@@ -52,10 +52,7 @@ def parse_duration_or_target(timestr) -> int | float:
         match = re.fullmatch(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", timestr)
         if not match:
             raise ValueError("Invalid duration format. Use [12h][34m][56s]")
-        m_h, m_m, m_s = match.groups()
-        h = int(m_h) if m_h else 0
-        m = int(m_m) if m_m else 0
-        s = int(m_s) if m_s else 0
+        h, m, s = (int(m) if m else 0 for m in match.groups())
         return h * 3600 + m * 60 + s
 
 
