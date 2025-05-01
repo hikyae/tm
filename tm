@@ -31,7 +31,7 @@ def beep_loop(stop_event):
         time.sleep(0.5)
 
 
-def parse_duration_or_target(timestr) -> int | float:
+def parse_time(timestr) -> float:
     if ":" in timestr:
         # HH:MM[:SS] format
         parts = list(map(int, timestr.split(":")))
@@ -46,14 +46,14 @@ def parse_duration_or_target(timestr) -> int | float:
         target = now.replace(hour=h, minute=m, second=s, microsecond=0)
         if target < now:
             target += datetime.timedelta(days=1)
-        return (target - now).total_seconds()
+        return target.timestamp()
     else:
         # 12h34m56s format
         match = re.fullmatch(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", timestr)
         if not match:
             raise ValueError("Invalid duration format. Use [12h][34m][56s]")
         h, m, s = (int(m) if m else 0 for m in match.groups())
-        return h * 3600 + m * 60 + s
+        return time.time() + h * 3600 + m * 60 + s
 
 
 def get_center_rect(screen, img):
@@ -68,7 +68,7 @@ def main():
         return
 
     try:
-        duration = parse_duration_or_target(sys.argv[1])
+        target_time = parse_time(sys.argv[1])
     except Exception as e:
         print("Invalid time string:", e)
         return
@@ -89,12 +89,8 @@ def main():
     stop_event = threading.Event()
     beep_thread = None
 
-    start_time = time.time()
-
     while running:
-        now = time.time()
-        remaining = duration - (now - start_time)
-
+        remaining = target_time - time.time()
         screen.fill(BLACK)
 
         if counting_down:
