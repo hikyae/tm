@@ -93,14 +93,15 @@ def main():
 
     while running:
         now = time.time()
-        remaining = int(duration - (now - start_time) + 1)
+        remaining = duration - (now - start_time)
 
         screen.fill(BLACK)
 
         if counting_down:
-            hrs = remaining // 3600
-            mins = (remaining % 3600) // 60
-            secs = remaining % 60
+            time_sec = int(remaining + 1)
+            hrs = time_sec // 3600
+            mins = (time_sec % 3600) // 60
+            secs = time_sec % 60
             time_str = f"{hrs:02}:{mins:02}:{secs:02}"
             time_img = time_font.render(time_str, True, GREEN)
             screen.blit(time_img, get_center_rect(screen, time_img))
@@ -118,19 +119,18 @@ def main():
             msg_rect = get_center_rect(screen, msg_img)
             screen.blit(msg_img, msg_rect)
             pygame.display.update()
-            # keep showing message at least for 1 second
-            # even if space key is pressed accidentally
-            time.sleep(1)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif not counting_down and (
+            elif remaining <= -0.5 and (
                 event.type == pygame.MOUSEBUTTONDOWN
                 and msg_rect.collidepoint(event.pos)
                 or event.type == pygame.KEYDOWN
                 and event.key == pygame.K_SPACE
             ):
+                # keep showing message at least for 0.5 seconds
+                # even if space key is pressed accidentally
                 stop_event.set()
                 if beep_thread:
                     beep_thread.join()
