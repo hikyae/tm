@@ -97,7 +97,7 @@ def main():
         now = time.time()
         remaining = int(duration - (now - start_time) + 1)
 
-        screen.fill((30, 30, 30))
+        screen.fill((0, 0, 0))
 
         if counting_down:
             hrs = remaining // 3600
