@@ -94,27 +94,27 @@ def main():
         screen.fill(BLACK)
 
         if counting_down:
-            time_sec = int(remaining + 1)
-            hrs = time_sec // 3600
-            mins = (time_sec % 3600) // 60
-            secs = time_sec % 60
+            rem_int = int(remaining + 1)
+            hrs = rem_int // 3600
+            mins = (rem_int % 3600) // 60
+            secs = rem_int % 60
             time_str = f"{hrs:02}:{mins:02}:{secs:02}"
             time_img = time_font.render(time_str, True, GREEN)
             screen.blit(time_img, get_center_rect(screen, time_img))
             pygame.display.update()
 
-        if remaining <= 0 and counting_down:
-            counting_down = False
+            if remaining <= 0:
+                counting_down = False
 
-            beep_thread = threading.Thread(target=beep_loop, args=(stop_event,))
-            beep_thread.start()
+                beep_thread = threading.Thread(target=beep_loop, args=(stop_event,))
+                beep_thread.start()
 
-            msg_img = msg_font.render(message, True, GREEN)
-            screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
-            pygame.display.set_caption("time is up")
-            msg_rect = get_center_rect(screen, msg_img)
-            screen.blit(msg_img, msg_rect)
-            pygame.display.update()
+                msg_img = msg_font.render(message, True, GREEN)
+                screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
+                pygame.display.set_caption("time is up")
+                msg_rect = get_center_rect(screen, msg_img)
+                screen.blit(msg_img, msg_rect)
+                pygame.display.update()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
