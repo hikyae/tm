@@ -1,11 +1,14 @@
 #!/bin/env python3
 import datetime
+import os
 import re
 import sys
 import threading
 import time
 
 import numpy as np
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
 BLACK = (0, 0, 0)
