@@ -123,7 +123,12 @@ def main():
                 event.type == pygame.MOUSEBUTTONDOWN
                 and msg_rect.collidepoint(event.pos)
                 or event.type == pygame.KEYDOWN
-                and event.key == pygame.K_SPACE
+                and event.key
+                in (
+                    pygame.K_RETURN,
+                    pygame.K_ESCAPE,
+                    pygame.K_SPACE,
+                )
             ):
                 # keep showing message at least for 0.5 seconds
                 # even if space key is pressed accidentally

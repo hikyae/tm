@@ -63,7 +63,7 @@ You can specify the time in two formats:
 - The timer switches to a new window showing your custom message.
 - A beeping sound is played repeatedly until you **acknowledge** the alert.
 - You can stop the sound and exit the program by:
-  - Pressing the **spacebar**
+  - **Pressing** Enter, Escape, or Space key
   - **Clicking** the message text
   - **Closing** the window
 
