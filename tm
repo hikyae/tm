@@ -78,8 +78,8 @@ def main():
     pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
     pygame.init()
 
-    screen = pygame.display.set_mode((100, 50))
     pygame.display.set_caption("timer")
+    screen = pygame.display.set_mode((100, 50))
     time_font = pygame.font.SysFont(None, 28)
     msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
 
@@ -110,8 +110,8 @@ def main():
                 beep_thread.start()
 
                 msg_img = msg_font.render(message, True, GREEN)
-                screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
                 pygame.display.set_caption("time is up")
+                screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
                 msg_rect = get_center_rect(screen, msg_img)
                 screen.blit(msg_img, msg_rect)
                 pygame.display.update()
