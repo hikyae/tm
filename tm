@@ -65,6 +65,96 @@ def get_center_rect(screen, img):
     return rect
 
 
+class TimerGUI:
+    def __init__(self, target_time, message):
+        self.target_time = target_time
+        self.message = message
+
+        pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
+        pygame.init()
+
+        pygame.display.set_caption("timer")
+        self.screen = pygame.display.set_mode((100, 50))
+        self.time_font = pygame.font.SysFont(None, 28)
+        self.msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
+        self.msg_rect = pygame.Rect(0, 0, 0, 0)
+
+    def update_clock(self, remaining):
+        rem_int = int(remaining + 1)
+        hrs = rem_int // 3600
+        mins = (rem_int % 3600) // 60
+        secs = rem_int % 60
+        time_str = f"{hrs:02}:{mins:02}:{secs:02}"
+        time_img = self.time_font.render(time_str, True, GREEN)
+        self.screen.blit(time_img, get_center_rect(self.screen, time_img))
+        pygame.display.update()
+
+    def show_time_is_up(self):
+        msg_img = self.msg_font.render(self.message, True, GREEN)
+        pygame.display.set_caption("time is up")
+        self.screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
+        self.msg_rect = get_center_rect(self.screen, msg_img)
+        self.screen.blit(msg_img, self.msg_rect)
+        pygame.display.update()
+
+    def beep_start(self, stop_event):
+        self.beep_thread = threading.Thread(target=beep_loop, args=(stop_event,))
+        self.beep_thread.start()
+
+    def beep_stop(self, stop_event):
+        stop_event.set()
+        if self.beep_thread:
+            self.beep_thread.join()
+
+    def alert_acknowledged(self, remaining, event) -> bool:
+        # Return True if the alert was acknowledged by any of the following actions
+        # 1. Message area was clicked
+        # 2. Enter key was pressed
+        # 3. Esc key was pressed
+        # 4. Space key was pressed
+        return (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and self.msg_rect.collidepoint(event.pos)
+            or event.type == pygame.KEYDOWN
+            and event.key
+            in (
+                pygame.K_RETURN,
+                pygame.K_ESCAPE,
+                pygame.K_SPACE,
+            )
+        )
+
+    def run(self):
+        running = True
+        counting_down = True
+        stop_event = threading.Event()
+        while running:
+            remaining = self.target_time - time.time()
+            self.screen.fill(BLACK)
+
+            if counting_down:
+                self.update_clock(remaining)
+
+                if remaining <= 0:
+                    counting_down = False
+                    self.beep_start(stop_event)
+                    self.show_time_is_up()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif remaining <= -0.5 and self.alert_acknowledged(remaining, event):
+                    # Ignore any action and keep showing the message for at least 0.5 seconds.
+                    # This prevents the message from disappearing if the user accidentally presses
+                    # some keys while typing.
+                    self.beep_stop(stop_event)
+                    running = False
+
+            time.sleep(0.1)
+
+        pygame.quit()
+
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: tm HH:MM[:SS] message")
@@ -78,71 +168,8 @@ def main():
 
     message = " ".join(sys.argv[2:])
 
-    pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
-    pygame.init()
-
-    pygame.display.set_caption("timer")
-    screen = pygame.display.set_mode((100, 50))
-    time_font = pygame.font.SysFont(None, 28)
-    msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
-
-    running = True
-    counting_down = True
-    msg_rect = None
-    stop_event = threading.Event()
-    beep_thread = None
-
-    while running:
-        remaining = target_time - time.time()
-        screen.fill(BLACK)
-
-        if counting_down:
-            rem_int = int(remaining + 1)
-            hrs = rem_int // 3600
-            mins = (rem_int % 3600) // 60
-            secs = rem_int % 60
-            time_str = f"{hrs:02}:{mins:02}:{secs:02}"
-            time_img = time_font.render(time_str, True, GREEN)
-            screen.blit(time_img, get_center_rect(screen, time_img))
-            pygame.display.update()
-
-            if remaining <= 0:
-                counting_down = False
-
-                beep_thread = threading.Thread(target=beep_loop, args=(stop_event,))
-                beep_thread.start()
-
-                msg_img = msg_font.render(message, True, GREEN)
-                pygame.display.set_caption("time is up")
-                screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
-                msg_rect = get_center_rect(screen, msg_img)
-                screen.blit(msg_img, msg_rect)
-                pygame.display.update()
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif remaining <= -0.5 and (
-                event.type == pygame.MOUSEBUTTONDOWN
-                and msg_rect.collidepoint(event.pos)
-                or event.type == pygame.KEYDOWN
-                and event.key
-                in (
-                    pygame.K_RETURN,
-                    pygame.K_ESCAPE,
-                    pygame.K_SPACE,
-                )
-            ):
-                # keep showing message at least for 0.5 seconds
-                # even if space key is pressed accidentally
-                stop_event.set()
-                if beep_thread:
-                    beep_thread.join()
-                running = False
-
-        time.sleep(0.1)
-
-    pygame.quit()
+    gui = TimerGUI(target_time, message)
+    gui.run()
 
 
 if __name__ == "__main__":
