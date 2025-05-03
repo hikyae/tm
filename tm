@@ -106,7 +106,7 @@ class TimerGUI:
         if self.beep_thread:
             self.beep_thread.join()
 
-    def alert_acknowledged(self, remaining, event) -> bool:
+    def alert_acknowledged(self, event) -> bool:
         # Return True if the alert was acknowledged by any of the following actions
         # 1. Message area was clicked
         # 2. Enter key was pressed
@@ -143,7 +143,7 @@ class TimerGUI:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
-                elif remaining <= -0.5 and self.alert_acknowledged(remaining, event):
+                elif remaining <= -0.5 and self.alert_acknowledged(event):
                     # Ignore any action and keep showing the message for at least 0.5 seconds.
                     # This prevents the message from disappearing if the user accidentally presses
                     # some keys while typing.
