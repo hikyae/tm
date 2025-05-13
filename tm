@@ -1,4 +1,4 @@
-#!/bin/env python3
+#!/usr/bin/env python3
 import datetime
 import os
 import re
@@ -73,7 +73,7 @@ class TimerGUI:
         pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
         pygame.init()
 
-        pygame.display.set_caption("timer")
+        pygame.display.set_caption("Timer")
         self.screen = pygame.display.set_mode((100, 50))
         self.time_font = pygame.font.SysFont(None, 28)
         self.msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
@@ -91,7 +91,7 @@ class TimerGUI:
 
     def show_time_is_up(self):
         msg_img = self.msg_font.render(self.message, True, GREEN)
-        pygame.display.set_caption("time is up")
+        pygame.display.set_caption("Time is up")
         self.screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
         self.msg_rect = get_center_rect(self.screen, msg_img)
         self.screen.blit(msg_img, self.msg_rect)
@@ -155,6 +155,59 @@ class TimerGUI:
         pygame.quit()
 
 
+class ErrorGUI:
+    def __init__(self, message):
+        self.message = message
+
+        pygame.init()
+
+    def show(self):
+        pygame.display.set_caption(
+            "Error! Press Enter, Esc, or Space, or click the message to close."
+        )
+        msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
+        msg_img = msg_font.render(self.message, True, GREEN)
+        screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
+        self.msg_rect = get_center_rect(screen, msg_img)
+        screen.blit(msg_img, self.msg_rect)
+        pygame.display.update()
+
+    def error_acknowledged(self, event) -> bool:
+        # Return True if the alert was acknowledged by any of the following actions
+        # 1. Message area was clicked
+        # 2. Enter key was pressed
+        # 3. Esc key was pressed
+        # 4. Space key was pressed
+        return (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and self.msg_rect.collidepoint(event.pos)
+            or event.type == pygame.KEYDOWN
+            and event.key
+            in (
+                pygame.K_RETURN,
+                pygame.K_ESCAPE,
+                pygame.K_SPACE,
+            )
+        )
+
+    def run(self):
+        self.show()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif self.error_acknowledged(event):
+                    # Ignore any action and keep showing the message for at least 0.5 seconds.
+                    # This prevents the message from disappearing if the user accidentally presses
+                    # some keys while typing.
+                    running = False
+
+            time.sleep(0.1)
+
+        pygame.quit()
+
+
 def main():
     if len(sys.argv) < 3:
         print("Usage: tm HH:MM[:SS] message")
@@ -163,7 +216,10 @@ def main():
     try:
         target_time = parse_time(sys.argv[1])
     except Exception as e:
-        print("Invalid time string:", e)
+        mes = f"Invalid time string: {e}"
+        print(mes)
+        error_gui = ErrorGUI(mes)
+        error_gui.run()
         return
 
     message = " ".join(sys.argv[2:])
