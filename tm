@@ -210,7 +210,10 @@ class ErrorGUI:
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: tm HH:MM[:SS] message")
+        mes = "Usage: tm HH:MM[:SS] message"
+        print(mes)
+        error_gui = ErrorGUI(mes)
+        error_gui.run()
         return
 
     try:
