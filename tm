@@ -195,12 +195,7 @@ class ErrorGUI:
         running = True
         while running:
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif self.error_acknowledged(event):
-                    # Ignore any action and keep showing the message for at least 0.5 seconds.
-                    # This prevents the message from disappearing if the user accidentally presses
-                    # some keys while typing.
+                if event.type == pygame.QUIT or self.error_acknowledged(event):
                     running = False
 
             time.sleep(0.1)
