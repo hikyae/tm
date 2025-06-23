@@ -14,12 +14,13 @@ import pygame
 BLACK = (0, 0, 0)
 GREEN = (0, 255, 0)
 SAMPLE_RATE = 44100
-FREQ = 2000
-VOLUME = 0.8
 
 
 def generate_beep_sound(
-    freq=FREQ, duration=0.3, sample_rate=SAMPLE_RATE, volume=VOLUME
+    freq=2000,
+    duration=0.3,
+    sample_rate=SAMPLE_RATE,
+    volume=0.8,
 ):
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
     waveform = np.sin(2 * np.pi * freq * t) * volume
