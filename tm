@@ -24,8 +24,9 @@ def generate_beep_sound(
 ):
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
     waveform = np.sin(2 * np.pi * freq * t) * volume
-    mono_waveform = np.int16(waveform * 32767)
-    return pygame.sndarray.make_sound(mono_waveform)
+    waveform_integers = np.int16(waveform * 32767)
+    stereo_waveform = np.column_stack((waveform_integers, waveform_integers))
+    return pygame.sndarray.make_sound(stereo_waveform)
 
 
 def beep_loop(stop_event):
@@ -71,7 +72,7 @@ class TimerGUI:
         self.target_time = target_time
         self.message = message
 
-        pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=1)
+        pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=2)
         pygame.init()
 
         pygame.display.set_caption("Timer")
