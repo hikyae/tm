@@ -78,7 +78,9 @@ class TimerGUI:
         pygame.display.set_caption("Timer")
         self.screen = pygame.display.set_mode((100, 50))
         self.time_font = pygame.font.SysFont(None, 28)
-        self.msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
+        self.msg_font = pygame.font.SysFont(
+            ("Cica", "Noto Sans CJK JP", "Meiryo UI", "Yu Gothic UI"), 30
+        )
         self.msg_rect = pygame.Rect(0, 0, 0, 0)
 
     def update_clock(self, remaining):
