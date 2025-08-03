@@ -2,18 +2,24 @@
 import datetime
 import os
 import re
+import subprocess
 import sys
 import threading
 import time
 
 import numpy as np
 
+# hide pygame startup message
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+import tkinter as tk
+from tkinter import font as tkfont
+
 import pygame
 
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
+BLACK = "#000000"
+GREEN = "#00ff00"
 SAMPLE_RATE = 44100
+BAR_HEIGHT = 65  # height of taskbar
 
 
 def generate_beep_sound(
@@ -57,162 +63,217 @@ def parse_time(timestr) -> float:
         match = re.fullmatch(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", timestr)
         if not match:
             raise ValueError("Invalid duration format. Use [12h][34m][56s]")
-        h, m, s = (int(m) if m else 0 for m in match.groups())
+        h, m, s = (int(x) if x else 0 for x in match.groups())
         return time.time() + h * 3600 + m * 60 + s
 
 
-def get_center_rect(screen, img):
-    rect = img.get_rect()
-    rect.center = (screen.get_width() // 2, screen.get_height() // 2)
-    return rect
+class ErrorWindow:
+    def __init__(self, message):
+        self.message = message
+        self.root = tk.Tk()
+        self.root.title(
+            "Error! Press Enter, Esc, or Space, or click the message to close."
+        )
+        self.root.configure(bg=BLACK)
+        # keep on top
+        self.root.attributes("-topmost", True)
+        self.root.resizable(False, False)
+
+        # font fallback list as comma-separated; Tk will pick available
+        msg_font = tkfont.Font(
+            family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI",
+            size=20,
+            weight="normal",
+        )
+        self.label = tk.Label(
+            self.root,
+            text=message,
+            font=msg_font,
+            fg=GREEN,
+            bg=BLACK,
+            wraplength=1000,
+            justify="center",
+        )
+        self.label.pack(padx=10, pady=0)
+
+        self.acknowledged = False
+        self.shown_at = time.time()
+
+        # bind click/key
+        self.label.bind("<Button-1>", self.on_ack)
+        self.root.bind("<Key>", self.on_key)
+        self.root.bind("<Button-1>", self.on_ack)
+
+        self.center_window()
+        self.check_ack_loop()
+        self.root.mainloop()
+
+    def center_window(self):
+        self.root.update_idletasks()
+        w = self.root.winfo_width()
+        h = self.root.winfo_height()
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+
+    def on_ack(self, event=None):
+        if time.time() - self.shown_at >= 0.5:
+            self.acknowledged = True
+
+    def on_key(self, event):
+        if event.keysym in ("Return", "Escape", "space"):
+            self.on_ack()
+
+    def check_ack_loop(self):
+        if self.acknowledged:
+            self.root.destroy()
+        else:
+            self.root.after(100, self.check_ack_loop)
+
+
+class AlertWindow:
+    def __init__(self, message):
+        self.message = message
+        self.stop_event = threading.Event()
+        self.root = tk.Tk()
+        self.root.title("Time is up")
+        self.root.configure(bg=BLACK)
+        self.root.attributes("-topmost", True)
+        self.root.resizable(False, False)
+
+        msg_font = tkfont.Font(
+            family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI",
+            size=20,
+            weight="normal",
+        )
+        self.label = tk.Label(
+            self.root, text=message, font=msg_font, fg=GREEN, bg=BLACK, justify="center"
+        )
+        self.label.pack(padx=10, pady=0)
+
+        self.acknowledged = False
+        self.shown_at = time.time()
+
+        # bind click/key
+        self.label.bind("<Button-1>", self.on_ack)
+        self.root.bind("<Key>", self.on_key)
+        self.root.bind("<Button-1>", self.on_ack)
+
+        self.center_window()
+        self.check_ack_loop()
+        self.start_beep()
+        self.root.mainloop()
+
+    def center_window(self):
+        self.root.update_idletasks()
+        w = self.root.winfo_width()
+        h = self.root.winfo_height()
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
+
+    def start_beep(self):
+        self.beep_thread = threading.Thread(
+            target=beep_loop, args=(self.stop_event,), daemon=True
+        )
+        self.beep_thread.start()
+
+    def on_ack(self, event=None):
+        if time.time() - self.shown_at >= 0.5:
+            self.acknowledged = True
+
+    def on_key(self, event):
+        if event.keysym in ("Return", "Escape", "space"):
+            self.on_ack()
+
+    def check_ack_loop(self):
+        if self.acknowledged:
+            self.stop_event.set()
+            self.root.destroy()
+        else:
+            self.root.after(100, self.check_ack_loop)
 
 
 class TimerGUI:
     def __init__(self, target_time, message):
         self.target_time = target_time
         self.message = message
-
+        # init sound
         pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=2)
-        pygame.init()
+        self.beep_thread = None
 
-        pygame.display.set_caption("Timer")
-        self.screen = pygame.display.set_mode((100, 50))
-        self.time_font = pygame.font.SysFont(None, 28)
-        self.msg_font = pygame.font.SysFont(
-            ("Cica", "Noto Sans CJK JP", "Meiryo UI", "Yu Gothic UI"), 30
+        self.root = tk.Tk()
+        self.root.title("Timer")
+        self.root.configure(bg=BLACK)
+        self.root.attributes("-topmost", True)
+        self.root.resizable(False, False)
+
+        time_font = tkfont.Font(
+            family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI", size=15
         )
-        self.msg_rect = pygame.Rect(0, 0, 0, 0)
+        self.label = tk.Label(self.root, text="", font=time_font, fg=GREEN, bg=BLACK)
+        self.label.pack(padx=10, pady=5)
 
-    def update_clock(self, remaining):
-        rem_int = int(remaining + 1)
-        hrs = rem_int // 3600
-        mins = (rem_int % 3600) // 60
-        secs = rem_int % 60
-        time_str = f"{hrs:02}:{mins:02}:{secs:02}"
-        time_img = self.time_font.render(time_str, True, GREEN)
-        self.screen.blit(time_img, get_center_rect(self.screen, time_img))
-        pygame.display.update()
+        # initial placement at bottom-right
+        self.root.update_idletasks()
+        self.place_bottom_right()
 
-    def show_time_is_up(self):
-        msg_img = self.msg_font.render(self.message, True, GREEN)
-        pygame.display.set_caption("Time is up")
-        self.screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
-        self.msg_rect = get_center_rect(self.screen, msg_img)
-        self.screen.blit(msg_img, self.msg_rect)
-        pygame.display.update()
+        self.time_up_shown = False
 
-    def beep_start(self, stop_event):
-        self.beep_thread = threading.Thread(target=beep_loop, args=(stop_event,))
-        self.beep_thread.start()
+        # start update loop
+        self.update_clock()
+        self.root.mainloop()
 
-    def beep_stop(self, stop_event):
-        stop_event.set()
-        if self.beep_thread:
-            self.beep_thread.join()
+    def place_bottom_right(self):
+        self.root.update_idletasks()
+        w = self.root.winfo_width()
+        h = self.root.winfo_height()
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        # offset a bit from edges
+        x = sw - w - 8
+        y = sh - h - BAR_HEIGHT
+        if os.environ.get("SWAYSOCK"):
+            try:
+                for cmd in [
+                    f'[class="Tk" title="Timer"] floating enable; [class="Tk" title="Timer"] move position {x} {y}; no_focus [class="Tk" title="Timer"]',
+                ]:
+                    subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
+                return
+            except subprocess.CalledProcessError as e:
+                print(e)
+                pass
+        self.root.geometry(f"{w}x{h}+{x}+{y}")
 
-    def alert_acknowledged(self, event) -> bool:
-        # Return True if the alert was acknowledged by any of the following actions
-        # 1. Message area was clicked
-        # 2. Enter key was pressed
-        # 3. Esc key was pressed
-        # 4. Space key was pressed
-        return (
-            event.type == pygame.MOUSEBUTTONDOWN
-            and self.msg_rect.collidepoint(event.pos)
-            or event.type == pygame.KEYDOWN
-            and event.key
-            in (
-                pygame.K_RETURN,
-                pygame.K_ESCAPE,
-                pygame.K_SPACE,
-            )
-        )
-
-    def run(self):
-        running = True
-        counting_down = True
-        stop_event = threading.Event()
-        while running:
-            remaining = self.target_time - time.time()
-            self.screen.fill(BLACK)
-
-            if counting_down:
-                self.update_clock(remaining)
-
-                if remaining <= 0:
-                    counting_down = False
-                    self.beep_start(stop_event)
-                    self.show_time_is_up()
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif remaining <= -0.5 and self.alert_acknowledged(event):
-                    # Ignore any action and keep showing the message for at least 0.5 seconds.
-                    # This prevents the message from disappearing if the user accidentally presses
-                    # some keys while typing.
-                    self.beep_stop(stop_event)
-                    running = False
-
-            time.sleep(0.1)
-
-        pygame.quit()
-
-
-class ErrorGUI:
-    def __init__(self, message):
-        self.message = message
-
-        pygame.init()
-
-    def show(self):
-        pygame.display.set_caption(
-            "Error! Press Enter, Esc, or Space, or click the message to close."
-        )
-        msg_font = pygame.font.SysFont(("Cica", "Noto Sans CJK JP"), 30)
-        msg_img = msg_font.render(self.message, True, GREEN)
-        screen = pygame.display.set_mode((msg_img.get_width() + 20, 50))
-        self.msg_rect = get_center_rect(screen, msg_img)
-        screen.blit(msg_img, self.msg_rect)
-        pygame.display.update()
-
-    def error_acknowledged(self, event) -> bool:
-        # Return True if the alert was acknowledged by any of the following actions
-        # 1. Message area was clicked
-        # 2. Enter key was pressed
-        # 3. Esc key was pressed
-        # 4. Space key was pressed
-        return (
-            event.type == pygame.MOUSEBUTTONDOWN
-            and self.msg_rect.collidepoint(event.pos)
-            or event.type == pygame.KEYDOWN
-            and event.key
-            in (
-                pygame.K_RETURN,
-                pygame.K_ESCAPE,
-                pygame.K_SPACE,
-            )
-        )
-
-    def run(self):
-        self.show()
-        running = True
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or self.error_acknowledged(event):
-                    running = False
-
-            time.sleep(0.1)
-
-        pygame.quit()
+    def update_clock(self):
+        remaining = self.target_time - time.time()
+        if remaining > 0:
+            rem_int = int(remaining + 1)
+            hrs = rem_int // 3600
+            mins = (rem_int % 3600) // 60
+            secs = rem_int % 60
+            time_str = f"{hrs:02}:{mins:02}:{secs:02}"
+            self.label.config(text=time_str)
+            # keep it in bottom-right in case size changed
+            self.place_bottom_right()
+            self.root.after(100, self.update_clock)
+        else:
+            if not self.time_up_shown:
+                self.time_up_shown = True
+                # destroy countdown window and show alert
+                self.root.destroy()
+                AlertWindow(self.message)
 
 
 def main():
     if len(sys.argv) < 3:
         mes = "Usage: tm HH:MM[:SS] message"
         print(mes)
-        error_gui = ErrorGUI(mes)
-        error_gui.run()
+        ErrorWindow(mes)
         return
 
     try:
@@ -220,14 +281,11 @@ def main():
     except Exception as e:
         mes = f"Invalid time string: {e}"
         print(mes)
-        error_gui = ErrorGUI(mes)
-        error_gui.run()
+        ErrorWindow(mes)
         return
 
     message = " ".join(sys.argv[2:])
-
-    gui = TimerGUI(target_time, message)
-    gui.run()
+    TimerGUI(target_time, message)
 
 
 if __name__ == "__main__":
