@@ -213,7 +213,7 @@ class TimerGUI:
         self.root.resizable(False, False)
 
         time_font = tkfont.Font(
-            family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI", size=15
+            family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI", size=17
         )
         self.label = tk.Label(self.root, text="", font=time_font, fg=GREEN, bg=BLACK)
         self.label.pack(padx=10, pady=5)
