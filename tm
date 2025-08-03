@@ -234,8 +234,11 @@ class TimerGUI:
         y = sh - h - BAR_HEIGHT
         if os.environ.get("SWAYSOCK"):
             try:
-                cmd = f'[workspace="__focused__" class="Tk" title="^Timer$"] floating enable, move position {x} {y}; no_focus [workspace="__focused__" class="Tk" title="^Timer$"]'
-                subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
+                for cmd in [
+                    f'[workspace="__focused__" class="Tk" title="^Timer$"] floating enable, move position {x} {y}',
+                    'no_focus [workspace="__focused__" class="Tk" title="^Timer$"]',
+                ]:
+                    subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
                 return
             except subprocess.CalledProcessError as e:
                 print(e)
@@ -251,7 +254,12 @@ class TimerGUI:
             mins = (rem_int % 3600) // 60
             secs = rem_int % 60
             time_str = f"{hrs:02}:{mins:02}:{secs:02}"
-            self.label.config(text=time_str)
+            last_time_str = self.label.cget("text")
+            if time_str != last_time_str:
+                self.label.config(text=time_str)
+                if len(time_str) != len(last_time_str):
+                    # fix position when window width changes
+                    self.place_bottom_right()
             self.root.after(100, self.update_clock)
         else:
             # destroy countdown window and show alert
