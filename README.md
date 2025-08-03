@@ -4,9 +4,9 @@ Cross-Platform CLI Timer with GUI Countdown and Beep Alert
 
 ## Demo
 
-An example from my environment using a window manager (Sway), a launcher program (Wofi), and a shell script.
+An example from my environment using a window manager (Sway), a launcher program (Wofi).
 
-![Demo GIF](https://github.com/user-attachments/assets/f5703aa7-4b3d-4bc0-9a62-21a22a747d9d)
+![Demo video](https://github.com/user-attachments/assets/956ff4da-1ffa-47dd-af4e-2806220e647e)
 
 ## Features
 
