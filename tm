@@ -22,26 +22,6 @@ SAMPLE_RATE = 44100
 BAR_HEIGHT = 65  # height of taskbar
 
 
-def generate_beep_sound(
-    freq=2000,
-    duration=0.3,
-    sample_rate=SAMPLE_RATE,
-    volume=0.8,
-):
-    t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    waveform = np.sin(2 * np.pi * freq * t) * volume
-    waveform_integers = np.int16(waveform * 32767)
-    stereo_waveform = np.column_stack((waveform_integers, waveform_integers))
-    return pygame.sndarray.make_sound(stereo_waveform)
-
-
-def beep_loop(stop_event):
-    sound = generate_beep_sound()
-    while not stop_event.is_set():
-        sound.play()
-        time.sleep(0.5)
-
-
 def parse_time(timestr) -> float:
     if ":" in timestr:
         # HH:MM[:SS] format
@@ -67,19 +47,20 @@ def parse_time(timestr) -> float:
         return time.time() + h * 3600 + m * 60 + s
 
 
-class ErrorWindow:
-    def __init__(self, message):
+class BaseWindow:
+    """
+    Responsible for displaying a simple centered Tkinter window with a message,
+    handling user acknowledgement via click or key, and closing when acknowledged.
+    """
+
+    def __init__(self, message: str, title: str):
         self.message = message
         self.root = tk.Tk()
-        self.root.title(
-            "Error! Press Enter, Esc, or Space, or click the message to close."
-        )
+        self.root.title(title)
         self.root.configure(bg=BLACK)
-        # keep on top
         self.root.attributes("-topmost", True)
         self.root.resizable(False, False)
 
-        # font fallback list as comma-separated; Tk will pick available
         msg_font = tkfont.Font(
             family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI",
             size=20,
@@ -91,7 +72,7 @@ class ErrorWindow:
             font=msg_font,
             fg=GREEN,
             bg=BLACK,
-            wraplength=1000,
+            wraplength=1500,
             justify="center",
         )
         self.label.pack(padx=10, pady=0)
@@ -99,11 +80,11 @@ class ErrorWindow:
         self.acknowledged = False
         self.shown_at = time.time()
 
-        # bind click/key
         self.label.bind("<Button-1>", self.on_ack)
-        self.root.bind("<Key>", self.on_key)
         self.root.bind("<Button-1>", self.on_ack)
+        self.root.bind("<Key>", self.on_key)
 
+    def start(self):
         self.center_window()
         self.check_ack_loop()
         self.root.mainloop()
@@ -128,83 +109,86 @@ class ErrorWindow:
 
     def check_ack_loop(self):
         if self.acknowledged:
-            self.root.destroy()
+            self.on_acknowledged()
         else:
             self.root.after(100, self.check_ack_loop)
 
+    def on_acknowledged(self):
+        self.root.destroy()
 
-class AlertWindow:
-    def __init__(self, message):
-        self.message = message
+
+class BeepPlayer:
+    """
+    Responsible for generating and playing a repeating beep sound until stopped.
+    """
+
+    def __init__(self, freq=2000, duration=0.3, sample_rate=SAMPLE_RATE, volume=0.8):
+        pygame.mixer.init(frequency=sample_rate, size=-16, channels=2)
+        self.freq = freq
+        self.duration = duration
+        self.sample_rate = sample_rate
+        self.volume = volume
         self.stop_event = threading.Event()
-        self.root = tk.Tk()
-        self.root.title("Time is up")
-        self.root.configure(bg=BLACK)
-        self.root.attributes("-topmost", True)
-        self.root.resizable(False, False)
+        self.thread = threading.Thread(target=self._beep_loop, daemon=True)
 
-        msg_font = tkfont.Font(
-            family="Cica, Noto Sans CJK JP, Meiryo UI, Yu Gothic UI",
-            size=20,
-            weight="normal",
+    def _generate_beep_sound(self):
+        t = np.linspace(
+            0, self.duration, int(self.sample_rate * self.duration), endpoint=False
         )
-        self.label = tk.Label(
-            self.root, text=message, font=msg_font, fg=GREEN, bg=BLACK, justify="center"
+        waveform = np.sin(2 * np.pi * self.freq * t) * self.volume
+        waveform_integers = np.int16(waveform * 32767)
+        stereo_waveform = np.column_stack((waveform_integers, waveform_integers))
+        return pygame.sndarray.make_sound(stereo_waveform)
+
+    def _beep_loop(self):
+        sound = self._generate_beep_sound()
+        while not self.stop_event.is_set():
+            sound.play()
+            time.sleep(0.5)
+
+    def start(self):
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        # thread is daemon; join briefly if possible
+        self.thread.join(timeout=0.1)
+
+
+class ErrorWindow(BaseWindow):
+    """Specialized window for error messages; does not include sound."""
+
+    def __init__(self, message):
+        super().__init__(
+            message,
+            title="Error! Press Enter, Esc, or Space, or click the message to close.",
         )
-        self.label.pack(padx=10, pady=0)
+        self.start()
 
-        self.acknowledged = False
-        self.shown_at = time.time()
 
-        # bind click/key
-        self.label.bind("<Button-1>", self.on_ack)
-        self.root.bind("<Key>", self.on_key)
-        self.root.bind("<Button-1>", self.on_ack)
+class AlertWindow(BaseWindow):
+    """Alert window that shows a message and plays a beep until acknowledged."""
 
-        self.center_window()
-        self.check_ack_loop()
-        self.start_beep()
-        self.root.mainloop()
+    def __init__(self, message):
+        super().__init__(message, title="Time is up")
+        self.beep_player = BeepPlayer()
+        self.beep_player.start()
+        self.start()
 
-    def center_window(self):
-        self.root.update_idletasks()
-        w = self.root.winfo_width()
-        h = self.root.winfo_height()
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        x = (sw - w) // 2
-        y = (sh - h) // 2
-        self.root.geometry(f"{w}x{h}+{x}+{y}")
-
-    def start_beep(self):
-        self.beep_thread = threading.Thread(
-            target=beep_loop, args=(self.stop_event,), daemon=True
-        )
-        self.beep_thread.start()
-
-    def on_ack(self, event=None):
-        if time.time() - self.shown_at >= 0.5:
-            self.acknowledged = True
-
-    def on_key(self, event):
-        if event.keysym in ("Return", "Escape", "space"):
-            self.on_ack()
-
-    def check_ack_loop(self):
-        if self.acknowledged:
-            self.stop_event.set()
-            self.root.destroy()
-        else:
-            self.root.after(100, self.check_ack_loop)
+    def on_acknowledged(self):
+        self.beep_player.stop()
+        super().on_acknowledged()
 
 
 class TimerGUI:
+    """
+    Countdown timer display placed at bottom-right. When the timer expires,
+    it invokes AlertWindow with the provided message.
+    """
+
     def __init__(self, target_time, message):
         self.target_time = target_time
         self.message = message
-        # init sound
-        pygame.mixer.init(frequency=SAMPLE_RATE, size=-16, channels=2)
-        self.beep_thread = None
 
         self.root = tk.Tk()
         self.root.title("Timer")
@@ -218,7 +202,6 @@ class TimerGUI:
         self.label = tk.Label(self.root, text="", font=time_font, fg=GREEN, bg=BLACK)
         self.label.pack(padx=10, pady=5)
 
-        # start update loop
         self.update_clock()
         self.place_bottom_right()
         self.root.mainloop()
@@ -262,7 +245,6 @@ class TimerGUI:
                     self.place_bottom_right()
             self.root.after(100, self.update_clock)
         else:
-            # destroy countdown window and show alert
             self.root.destroy()
             AlertWindow(self.message)
 
