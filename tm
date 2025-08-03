@@ -218,14 +218,9 @@ class TimerGUI:
         self.label = tk.Label(self.root, text="", font=time_font, fg=GREEN, bg=BLACK)
         self.label.pack(padx=10, pady=5)
 
-        # initial placement at bottom-right
-        self.root.update_idletasks()
-        self.place_bottom_right()
-
-        self.time_up_shown = False
-
         # start update loop
         self.update_clock()
+        self.place_bottom_right()
         self.root.mainloop()
 
     def place_bottom_right(self):
@@ -258,15 +253,11 @@ class TimerGUI:
             secs = rem_int % 60
             time_str = f"{hrs:02}:{mins:02}:{secs:02}"
             self.label.config(text=time_str)
-            # keep it in bottom-right in case size changed
-            self.place_bottom_right()
             self.root.after(100, self.update_clock)
         else:
-            if not self.time_up_shown:
-                self.time_up_shown = True
-                # destroy countdown window and show alert
-                self.root.destroy()
-                AlertWindow(self.message)
+            # destroy countdown window and show alert
+            self.root.destroy()
+            AlertWindow(self.message)
 
 
 def main():
