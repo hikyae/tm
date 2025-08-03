@@ -243,6 +243,7 @@ class TimerGUI:
                 print(e)
                 pass
         self.root.geometry(f"{w}x{h}+{x}+{y}")
+        self.root.update_idletasks()
 
     def update_clock(self):
         remaining = self.target_time - time.time()
