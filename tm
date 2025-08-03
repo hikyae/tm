@@ -235,7 +235,7 @@ class TimerGUI:
         if os.environ.get("SWAYSOCK"):
             try:
                 for cmd in [
-                    f'[class="Tk" title="Timer"] floating enable; [class="Tk" title="Timer"] move position {x} {y}; no_focus [class="Tk" title="Timer"]',
+                    f'[workspace="__focused__" title="Timer"] floating enable, move position {x} {y}; no_focus [workspace="__focused__" title="Timer"]',
                 ]:
                     subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
                 return
