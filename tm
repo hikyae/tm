@@ -189,6 +189,15 @@ class TimerGUI:
     def __init__(self, target_time, message):
         self.target_time = target_time
         self.message = message
+        self.sway_sock: str | None = os.getenv("SWAYSOCK")
+
+        if self.sway_sock:
+            try:
+                cmd = 'no_focus [workspace="__focused__" class="Tk" title="^Timer$"]'
+                subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
+            except subprocess.CalledProcessError as e:
+                print(e)
+                pass
 
         self.root = tk.Tk()
         self.root.title("Timer")
@@ -215,13 +224,10 @@ class TimerGUI:
         # offset a bit from edges
         x = sw - w - 8
         y = sh - h - BAR_HEIGHT
-        if os.environ.get("SWAYSOCK"):
+        if self.sway_sock:
             try:
-                for cmd in [
-                    f'[workspace="__focused__" class="Tk" title="^Timer$"] floating enable, move position {x} {y}',
-                    'no_focus [workspace="__focused__" class="Tk" title="^Timer$"]',
-                ]:
-                    subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
+                cmd = f'[workspace="__focused__" class="Tk" title="^Timer$"] floating enable, move position {x} {y}'
+                subprocess.run(["swaymsg", cmd], check=True, capture_output=True)
                 return
             except subprocess.CalledProcessError as e:
                 print(e)
