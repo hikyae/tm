@@ -12,7 +12,7 @@ An example from my environment using a window manager (Sway), a launcher program
 
 - **Cross-platform sound generation** using `numpy` and `pygame` — no external audio files required.
 - **Simple command-line interface** for setting timers with intuitive time formats.
-- **Real-time countdown display** via a minimal GUI window using `pygame`.
+- **Real-time countdown display** via a minimal GUI window using `tkinter`.
 - **Custom message display** when time is up, shown in a new window.
 - **Beeping alert loop** to notify the user when the timer ends.
 - Works on **Linux, macOS, and Windows**.
