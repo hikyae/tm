@@ -69,7 +69,7 @@ You can specify the time in two formats:
 
 ## Notes
 
-- The time format must exactly match one of the two described above. Otherwise, an error will be shown and no window will be displayed.
+- The time format must exactly match one of the two described above. Otherwise, an error window will be displayed.
 - The fonts used to render Japanese text (`"Cica"`, `"Noto Sans CJK JP"`, `"Meiryo UI"`, `"Yu Gothic UI"`) are specified for personal use. You may need to modify the font setting depending on your environment.
 
 ## License
